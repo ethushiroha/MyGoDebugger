@@ -1,0 +1,12 @@
+[
+  {
+    PC: 17509071
+    File: /Users/shirohaethu/Documents/project/go_project/protoc_test/test3/main.go
+    Line: 9
+    Function: 0xc00018b230
+    PCs: [
+      17509071
+    ]
+    PCPids: []
+  }
+]
