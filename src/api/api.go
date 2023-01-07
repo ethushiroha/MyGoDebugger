@@ -54,7 +54,7 @@ func NewClientWithMain(addr string) (*MyClient, error) {
 	if err != nil {
 		return nil, err
 	}
-	err = client.CreateBreakPointByFunction("main.main")
+	err = client.CreateBreakpointByFunction("main.main", "main")
 	if err != nil {
 		return nil, err
 	}
@@ -65,6 +65,7 @@ func NewClientWithMain(addr string) (*MyClient, error) {
 	return client, nil
 }
 
+// currentEvalScope 返回当前的状态
 func (c *MyClient) currentEvalScope() api.EvalScope {
 	return api.EvalScope{
 		GoroutineID:  c.Current.GoroutineID,
@@ -73,12 +74,14 @@ func (c *MyClient) currentEvalScope() api.EvalScope {
 	}
 }
 
-func (c *MyClient) CreateBreakPointByFunction(functionName string) error {
+// CreateBreakpointByFunction 在函数名开始处下断点
+func (c *MyClient) CreateBreakpointByFunction(functionName, breakpointName string) error {
 	location, err := c.FindLocationByName(functionName)
 	if err != nil {
 		return err
 	}
 	_, err = c.client.CreateBreakpoint(&api.Breakpoint{
+		Name: breakpointName,
 		File: location.File,
 		Line: location.Line,
 	})
@@ -88,8 +91,10 @@ func (c *MyClient) CreateBreakPointByFunction(functionName string) error {
 	return nil
 }
 
-func (c *MyClient) CreateBreakPointByAddress(addr uint64) error {
+// CreateBreakpointByAddress 根据地址下断点
+func (c *MyClient) CreateBreakpointByAddress(addr uint64, name string) error {
 	_, err := c.client.CreateBreakpoint(&api.Breakpoint{
+		Name: name,
 		Addr: addr,
 	})
 	if err != nil {
@@ -98,7 +103,8 @@ func (c *MyClient) CreateBreakPointByAddress(addr uint64) error {
 	return nil
 }
 
-func (c *MyClient) ListBreakPoints() ([]*api.Breakpoint, error) {
+// ListBreakpoints 列出所有断点
+func (c *MyClient) ListBreakpoints() ([]*api.Breakpoint, error) {
 	breakpoints, err := c.client.ListBreakpoints(true)
 	if err != nil {
 		return nil, err
@@ -106,12 +112,14 @@ func (c *MyClient) ListBreakPoints() ([]*api.Breakpoint, error) {
 	return breakpoints, nil
 }
 
+// Continue 运行到下一个断点处
 func (c *MyClient) Continue() error {
 	c.client.Continue()
 	time.Sleep(time.Second)
 	return c.GetStat()
 }
 
+// ListRegs 得到所有的寄存器
 func (c *MyClient) ListRegs() (api.Registers, error) {
 	registers, err := c.client.ListThreadRegisters(c.Current.ThreadID, true)
 	// registers, err := c.client.ListScopeRegisters(c.currentEvalScope(), true)
@@ -129,6 +137,7 @@ func (c *MyClient) ListSource() ([]string, error) {
 	return sources, nil
 }
 
+// FindLocationByName 根据函数名称找到位置信息
 func (c *MyClient) FindLocationByName(functionName string) (api.Location, error) {
 	locations, err := c.client.FindLocation(c.currentEvalScope(), functionName, true, nil)
 	if err != nil {
@@ -137,6 +146,7 @@ func (c *MyClient) FindLocationByName(functionName string) (api.Location, error)
 	return locations[0], nil
 }
 
+// Stacktrace 列出调用栈
 func (c *MyClient) Stacktrace() []api.Stackframe {
 	stacktrace, err := c.client.Stacktrace(c.Current.GoroutineID, 10, api.StacktraceSimple, nil)
 	if err != nil {
@@ -246,6 +256,7 @@ func (c *MyClient) StepOut() error {
 	return c.GetStat()
 }
 
+// ReadSourceCode 是读取源文件，并定位到行
 func (c *MyClient) ReadSourceCode() ([]string, error) {
 	return utils.ReadSourceCodeFromFile(c.Current.FilePath, c.Current.FileLine)
 }
@@ -261,4 +272,50 @@ func (c *MyClient) ExamineMemory(address uint64, count int) ([]byte, error) {
 		return nil, err
 	}
 	return memories, nil
+}
+
+// ClearBreakpointByName 是根据断点名消除断点
+func (c *MyClient) ClearBreakpointByName(name string) error {
+	var err error
+	_, err = c.client.ClearBreakpointByName(name)
+	return err
+}
+
+// ClearBreakpointByID 是根据 ID 消除断点
+func (c *MyClient) ClearBreakpointByID(id int) error {
+	_, err := c.client.ClearBreakpoint(id)
+	return err
+}
+
+// ClearBreakpointByAddress 是根据地址删除断点
+func (c *MyClient) ClearBreakpointByAddress(address uint64) error {
+	points, err := c.ListBreakpoints()
+	if err != nil {
+		return err
+	}
+	for _, point := range points {
+		if point.Addr == address {
+			err = c.ClearBreakpointByID(point.ID)
+			if err != nil {
+				return err
+			}
+			break
+		}
+	}
+	return nil
+}
+
+// ClearAllBreakpoints 删除所有 breakpoints
+func (c *MyClient) ClearAllBreakpoints() error {
+	points, err := c.ListBreakpoints()
+	if err != nil {
+		return err
+	}
+	for _, point := range points {
+		err = c.ClearBreakpointByID(point.ID)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }

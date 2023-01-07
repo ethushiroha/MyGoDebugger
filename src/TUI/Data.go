@@ -15,7 +15,7 @@ func (data *CurrentData) Disassembly() error {
 	if err != nil {
 		return err
 	}
-	points, err := data.Client.ListBreakPoints()
+	points, err := data.Client.ListBreakpoints()
 	if err != nil {
 		return err
 	}
@@ -27,13 +27,19 @@ func (data *CurrentData) Registers() {
 	data.RegsData = RegsToStrings(data.Client.Current.Regs)
 }
 
-func (data *CurrentData) ExamineMemory(start, ends uint64) error {
+func (data *CurrentData) ExamineMemory(start, mode uint64, format string) error {
+	ends := start + 0x80
 	mems, err := data.Client.ExamineMemory(start, int(ends-start))
 	if err != nil {
 		return err
 	}
-	data.MemoryData = MemoryToStrings(mems, start)
+	data.MemoryData = FormatMemory(mems, start, mode, format)
 	return nil
+}
+
+func (data *CurrentData) ExamineStack(mode uint64, format string) error {
+	start := data.Client.Current.Rsp
+	return data.ExamineMemory(start, mode, format)
 }
 
 func (data *CurrentData) FlashData() error {
@@ -42,7 +48,7 @@ func (data *CurrentData) FlashData() error {
 		return err
 	}
 	data.Registers()
-	err = data.ExamineMemory(data.Client.Current.Rsp, data.Client.Current.Rbp+0x30)
+	err = data.ExamineStack(8, "hex")
 	if err != nil {
 		return err
 	}

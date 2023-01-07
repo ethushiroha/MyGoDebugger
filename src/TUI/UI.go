@@ -31,7 +31,7 @@ func (ui *UI) Run() error {
 	if err != nil {
 		return err
 	}
-	if err := ui.app.SetRoot(ui.grid, true).SetFocus(ui.grid).Run(); err != nil {
+	if err = ui.app.SetRoot(ui.grid, true).SetFocus(ui.grid).Run(); err != nil {
 		return err
 	}
 	return nil
@@ -94,35 +94,43 @@ func (ui *UI) FlashData() error {
 }
 
 func (ui *UI) dealWithEnter(command string) error {
+	var err error = nil
 	tmp := strings.Split(command, " ")
 	switch tmp[0] {
 	case "q", "quit":
 		ui.app.Stop()
 		return nil
 	case "b", "break":
+		var name string
 		if len(tmp) == 2 {
-			if strings.HasPrefix(tmp[1], "0x") {
-				loc, err := strconv.ParseUint(tmp[1], 0, 64)
-				if err != nil {
-					return err
-				}
-				err = ui.data.Client.CreateBreakPointByAddress(loc)
-				if err != nil {
-					return err
-				}
-			} else {
-				err := ui.data.Client.CreateBreakPointByFunction(tmp[1])
-				if err != nil {
-					return err
-				}
+			name = ""
+		} else if len(tmp) == 3 {
+			name = tmp[2]
+		} else {
+			break
+		}
+
+		if strings.HasPrefix(tmp[1], "0x") {
+			loc, err := stringToUint64(tmp[1])
+			if err != nil {
+				return err
 			}
-			err := ui.data.Disassembly()
+			err = ui.data.Client.CreateBreakpointByAddress(loc, name)
+			if err != nil {
+				return err
+			}
+		} else {
+			err = ui.data.Client.CreateBreakpointByFunction(tmp[1], name)
 			if err != nil {
 				return err
 			}
 		}
+		err = ui.data.Disassembly()
+		if err != nil {
+			return err
+		}
 	case "c", "continue":
-		err := ui.data.Client.Continue()
+		err = ui.data.Client.Continue()
 		if err != nil {
 			return err
 		}
@@ -131,7 +139,7 @@ func (ui *UI) dealWithEnter(command string) error {
 			return err
 		}
 	case "si", "step-instruction":
-		err := ui.data.Client.StepInstruction()
+		err = ui.data.Client.StepInstruction()
 		if err != nil {
 			return err
 		}
@@ -140,7 +148,7 @@ func (ui *UI) dealWithEnter(command string) error {
 			return err
 		}
 	case "n", "next":
-		err := ui.data.Client.Next()
+		err = ui.data.Client.Next()
 		if err != nil {
 			return err
 		}
@@ -149,7 +157,7 @@ func (ui *UI) dealWithEnter(command string) error {
 			return err
 		}
 	case "so", "step-out":
-		err := ui.data.Client.StepOut()
+		err = ui.data.Client.StepOut()
 		if err != nil {
 			return err
 		}
@@ -157,8 +165,79 @@ func (ui *UI) dealWithEnter(command string) error {
 		if err != nil {
 			return err
 		}
+	case "clear":
+		if len(tmp) == 2 {
+			n, err := strconv.Atoi(tmp[1])
+			// is not id
+			if err != nil {
+				addr, err := stringToUint64(tmp[1])
+				if err != nil {
+					err = ui.data.Client.ClearBreakpointByName(tmp[1])
+					if err != nil {
+						return err
+					}
+				} else {
+					err = ui.data.Client.ClearBreakpointByAddress(addr)
+					if err != nil {
+						return err
+					}
+				}
+			} else {
+				err = ui.data.Client.ClearBreakpointByID(n)
+				if err != nil {
+					return err
+				}
+			}
+			err = ui.data.Disassembly()
+			if err != nil {
+				return err
+			}
+		}
+	case "clear-all":
+		err = ui.data.Client.ClearAllBreakpoints()
+		if err != nil {
+			return err
+		}
+	case "x":
+		var mode uint64
+		var format string
+		var address uint64
+		if len(tmp) == 2 {
+			mode = 1
+			//count = 1
+			format = "hex"
+			address, err = stringToUint64(tmp[1])
+			if err != nil {
+				return err
+			}
+
+		} else if len(tmp) == 3 {
+			address, err = stringToUint64(tmp[2])
+			if err != nil {
+				return err
+			}
+			if len(tmp[1]) == 1 {
+				mode = 1
+				format = getFormat(tmp[1][0])
+			} else if len(tmp[1]) == 2 {
+				mode = getMode(tmp[1][0])
+				format = getFormat(tmp[1][1])
+			} else {
+				// todo: return help error
+				return err
+			}
+		} else {
+			// todo: return help error
+			return err
+		}
+
+		err = ui.data.ExamineMemory(address, mode, format)
+		if err != nil {
+			return err
+		}
+
 	}
-	return nil
+	return err
 }
 
 func (ui *UI) DealWithCommand(key tcell.Key) {
@@ -177,10 +256,10 @@ func (ui *UI) DealWithCommand(key tcell.Key) {
 	}
 }
 
-func InitUI() (*UI, error) {
+func InitUI(address string) (*UI, error) {
 	ui := new(UI)
 	var err error
-	ui.data, err = InitData("127.0.0.1:9999")
+	ui.data, err = InitData(address)
 	if err != nil {
 		return nil, err
 	}

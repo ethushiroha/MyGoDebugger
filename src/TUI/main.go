@@ -1,7 +1,7 @@
 package main
 
 func main() {
-	ui, err := InitUI()
+	ui, err := InitUI("127.0.0.1:9999")
 	if err != nil {
 		panic(err)
 		return

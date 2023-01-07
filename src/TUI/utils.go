@@ -3,8 +3,13 @@ package main
 import (
 	"fmt"
 	"github.com/go-delve/delve/service/api"
+	"strconv"
 	"strings"
 )
+
+func stringToUint64(data string) (uint64, error) {
+	return strconv.ParseUint(data, 0, 64)
+}
 
 func ASMToStrings(asms api.AsmInstructions, pointers []*api.Breakpoint, ip uint64) []string {
 	result := make([]string, 0)
@@ -37,16 +42,76 @@ func RegsToStrings(regs api.Registers) []string {
 	return result
 }
 
-func MemoryToStrings(mems []byte, start uint64) []string {
+func CountInLineWithMode(mode uint64) uint64 {
+	switch mode {
+	case 1:
+		return 8
+	case 2:
+		return 4
+	case 4:
+		return 4
+	case 8:
+		return 2
+	default:
+		return 0
+	}
+}
+
+func getFormat(signal byte) string {
+	format := ""
+	switch signal {
+	case 'x':
+		format = "hex"
+	case 'd':
+		format = "dec"
+	}
+	return format
+}
+
+func getMode(signal byte) uint64 {
+	var mode uint64 = 0
+	switch signal {
+	case 'g':
+		mode = 8
+	case 'w':
+		mode = 4
+	case 'h':
+		mode = 2
+	case 'b':
+		mode = 1
+	}
+	return mode
+}
+
+// FormatMemory 格式化数据，例如 x gx addr 会变成每行 2 个 8 字节的数据
+func FormatMemory(mems []byte, start uint64, mode uint64, format string) []string {
 	result := make([]string, 0)
 	var offset uint64
 	for len(mems) > 0 {
-		data1 := fmt.Sprintf("0x%02x%02x%02x%02x%02x%02x%02x%02x", mems[7], mems[6], mems[5], mems[4], mems[3], mems[2], mems[1], mems[0])
-		data2 := fmt.Sprintf("0x%02x%02x%02x%02x%02x%02x%02x%02x", mems[15], mems[14], mems[13], mems[12], mems[11], mems[10], mems[9], mems[8])
-		line := fmt.Sprintf("0x%x    %s  %s", start+offset, data1, data2)
-		result = append(result, line)
-		mems = mems[0x10:]
-		offset += 0x10
+		sb := strings.Builder{}
+		address := fmt.Sprintf("0x%x", start+offset)
+		sb.WriteString(address)
+		sb.WriteString("    ")
+		count := CountInLineWithMode(mode)
+		var j uint64
+		for j = 0; j < count; j++ {
+			sb.WriteString("0x")
+			var i uint64
+			for i = 0; i < mode; i++ {
+				index := (j+1)*mode - i - 1
+				if format == "hex" {
+					sb.WriteString(fmt.Sprintf("%02x", mems[index]))
+				}
+				// todo: make dec format
+				//else if format == "dec" {
+				//	sb.WriteString(fmt.Sprintf("%03d", mems[index]))
+				//}
+			}
+			sb.WriteString(" ")
+		}
+		mems = mems[count*mode:]
+		offset += count * mode
+		result = append(result, sb.String())
 	}
 	return result
 }

@@ -17,7 +17,7 @@ func NewClientWithBreakpoint() (*MyApi.MyClient, error) {
 	if err != nil {
 		return nil, err
 	}
-	err = client.CreateBreakPointByFunction("main.main")
+	err = client.CreateBreakpointByFunction("main.main", "main")
 	if err != nil {
 		return nil, err
 	}
@@ -29,7 +29,7 @@ func NewClientWithBreakpoint() (*MyApi.MyClient, error) {
 }
 
 func PrintBreakPoints(client *MyApi.MyClient) {
-	points, err := client.ListBreakPoints()
+	points, err := client.ListBreakpoints()
 	if err != nil {
 		return
 	}
@@ -52,7 +52,7 @@ func TestCreateBreakPointByFunction(t *testing.T) {
 		return
 	}
 	PrintBreakPoints(client)
-	err = client.CreateBreakPointByFunction("main.main")
+	err = client.CreateBreakpointByFunction("main.main", "main")
 	if err != nil {
 		t.Fatal(err)
 		return
@@ -70,19 +70,19 @@ func TestCreateBreakPointByAddress(t *testing.T) {
 	rip := client.Current.Rip
 
 	address := rip + 23
-	points, err := client.ListBreakPoints()
+	points, err := client.ListBreakpoints()
 	if err != nil {
 		return
 	}
 	utils.PrintArrayWithDetail(points)
 	fmt.Println()
 
-	err = client.CreateBreakPointByAddress(address)
+	err = client.CreateBreakpointByAddress(address, "main")
 	if err != nil {
 		t.Fatal(err)
 		return
 	}
-	points, err = client.ListBreakPoints()
+	points, err = client.ListBreakpoints()
 	if err != nil {
 		return
 	}
@@ -120,7 +120,7 @@ func TestContinue(t *testing.T) {
 			fmt.Println("RIP ==> ", reg.Value)
 		}
 	}
-	err = client.CreateBreakPointByFunction("main.go:10")
+	err = client.CreateBreakpointByFunction("main.go:10", "main1")
 	if err != nil {
 		t.Fatal(err)
 		return
@@ -286,7 +286,7 @@ func TestStep(t *testing.T) {
 		t.Fatal(err)
 		return
 	}
-	//err = client.CreateBreakPointByFunction("main.go:")
+	//err = client.CreateBreakpointByFunction("main.go:")
 	//if err != nil {
 	//	t.Fatal(err)
 	//	return
@@ -380,4 +380,52 @@ func TestSimple(t *testing.T) {
 	for _, c := range cmds {
 		fmt.Println(c)
 	}
+}
+
+func TestClearBreakpointByName(t *testing.T) {
+	client, err := NewClientWithBreakpoint()
+	if err != nil {
+		t.Fatal(err)
+		return
+	}
+	points, err := client.ListBreakpoints()
+	if err != nil {
+		return
+	}
+	utils.PrintArray(points)
+	err = client.ClearBreakpointByName("main")
+	if err != nil {
+		return
+	}
+	points, err = client.ListBreakpoints()
+	if err != nil {
+		return
+	}
+	utils.PrintArray(points)
+}
+
+func TestClearBreakpointByID(t *testing.T) {
+	client, err := NewClientWithBreakpoint()
+	if err != nil {
+		t.Fatal(err)
+		return
+	}
+	points, err := client.ListBreakpoints()
+	if err != nil {
+		t.Fatal(err)
+		return
+	}
+	utils.PrintArray(points)
+	fmt.Println()
+	err = client.ClearBreakpointByID(1)
+	if err != nil {
+		t.Fatal(err)
+		return
+	}
+	points, err = client.ListBreakpoints()
+	if err != nil {
+		t.Fatal(err)
+		return
+	}
+	utils.PrintArray(points)
 }
