@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"fmt"
 	"os"
+	"strconv"
 )
 
 func PrintArrayWithDetail[T interface{}](array []T) {
@@ -60,4 +61,8 @@ func ReadSourceCodeFromFile(filename string, line int) ([]string, error) {
 	result = append(result, start)
 	return result, nil
 
+}
+
+func StringToUint64(data string) (uint64, error) {
+	return strconv.ParseUint(data, 0, 64)
 }

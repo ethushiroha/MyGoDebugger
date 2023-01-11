@@ -4,8 +4,6 @@ import (
 	"MyDebugger/src/utils"
 	"github.com/go-delve/delve/service/api"
 	"github.com/go-delve/delve/service/rpc2"
-	"strconv"
-	"time"
 )
 
 // CurrentStatus 表示运行时的确切状态
@@ -114,8 +112,9 @@ func (c *MyClient) ListBreakpoints() ([]*api.Breakpoint, error) {
 
 // Continue 运行到下一个断点处
 func (c *MyClient) Continue() error {
-	c.client.Continue()
-	time.Sleep(time.Second)
+	ch := c.client.Continue()
+	// 等待 continue 执行完毕
+	<-ch
 	return c.GetStat()
 }
 
@@ -182,17 +181,17 @@ func (c *MyClient) GetStat() error {
 		c.Current.Regs = regs
 		for _, reg := range regs {
 			if reg.Name == "Rip" {
-				c.Current.Rip, err = strconv.ParseUint(reg.Value, 0, 64)
+				c.Current.Rip, err = utils.StringToUint64(reg.Value)
 				if err != nil {
 					return err
 				}
 			} else if reg.Name == "Rsp" {
-				c.Current.Rsp, err = strconv.ParseUint(reg.Value, 0, 64)
+				c.Current.Rsp, err = utils.StringToUint64(reg.Value)
 				if err != nil {
 					return err
 				}
 			} else if reg.Name == "Rbp" {
-				c.Current.Rbp, err = strconv.ParseUint(reg.Value, 0, 64)
+				c.Current.Rbp, err = utils.StringToUint64(reg.Value)
 				if err != nil {
 					return err
 				}
@@ -214,13 +213,22 @@ func (c *MyClient) Next() error {
 
 // Disassembly 是反汇编 Rip 寄存器附近的数据
 func (c *MyClient) Disassembly() (api.AsmInstructions, error) {
-	pc := c.Current.Rip - 0x10
-	ends := pc + 0x60
-	asms, err := c.client.DisassembleRange(c.currentEvalScope(), pc, ends, api.IntelFlavour)
+	pc := c.Current.Rip
+	asms, err := c.client.DisassemblePC(c.currentEvalScope(), pc, api.IntelFlavour)
 	if err != nil {
 		return nil, err
 	}
-	return asms, nil
+	pcIndex := 0
+	for index, asm := range asms {
+		if asm.Loc.PC == pc {
+			pcIndex = index
+		}
+	}
+	if pcIndex < 4 {
+		return asms, nil
+	} else {
+		return asms[pcIndex-4:], nil
+	}
 }
 
 // Disassembly2 是反汇编 start 到 ends 范围内的数据
@@ -312,10 +320,36 @@ func (c *MyClient) ClearAllBreakpoints() error {
 		return err
 	}
 	for _, point := range points {
-		err = c.ClearBreakpointByID(point.ID)
-		if err != nil {
-			return err
+		if point.ID > 0 {
+			err = c.ClearBreakpointByID(point.ID)
+			if err != nil {
+				return err
+			}
 		}
 	}
 	return nil
+}
+
+func (c *MyClient) ReRun(rebuild bool) error {
+	_, err := c.client.Restart(rebuild)
+	if err != nil {
+		return err
+	}
+	err = c.Continue()
+	if err != nil {
+		return err
+	}
+	err = c.GetStat()
+	if err != nil {
+		return err
+	}
+	return err
+}
+
+func (c *MyClient) PrintAddress(address uint64) (byte, error) {
+	memory, err := c.ExamineMemory(address, 1)
+	if err != nil {
+		return 0, err
+	}
+	return memory[0], nil
 }

@@ -3,28 +3,36 @@ package main
 import (
 	"fmt"
 	"github.com/go-delve/delve/service/api"
-	"strconv"
 	"strings"
 )
 
-func stringToUint64(data string) (uint64, error) {
-	return strconv.ParseUint(data, 0, 64)
-}
+var wordList []string
 
-func ASMToStrings(asms api.AsmInstructions, pointers []*api.Breakpoint, ip uint64) []string {
-	result := make([]string, 0)
-	for _, asm := range asms {
-		pc := asm.Loc.PC
+func FormatASM(asms api.AsmInstructions, ip uint64) []string {
+	result := make([]string, 0, 0)
+	preFunc := ""
+	funcLine := ""
 
-		line := fmt.Sprintf("0x%x    [p]    %s", pc, asm.Text)
-		for _, pointer := range pointers {
-			pointerPC := pointer.Addr
-			if pointerPC == pc {
-				line = strings.Replace(line, "[p]", "#", 1)
-				break
+	for i := 0; i < len(asms); i++ {
+		line := ""
+		functionName := asms[i].Loc.Function.Name()
+		if functionName != preFunc {
+			if functionName != "" {
+				funcLine = fmt.Sprintf("[yellow]; Function %s [white]", functionName)
+			} else {
+				funcLine = "[yellow];  [white]"
 			}
+			result = append(result, funcLine)
+			preFunc = functionName
 		}
-		line = strings.Replace(line, "[p]", " ", 1)
+		pc := asms[i].Loc.PC
+		line = fmt.Sprintf("0x%x    [p]    %s", pc, asms[i].Text)
+		if asms[i].Breakpoint {
+			line = strings.Replace(line, "[p]", "#", 1)
+		} else {
+			line = strings.Replace(line, "[p]", " ", 1)
+		}
+
 		if pc == ip {
 			line = "[red]" + line + "[white]"
 		}
@@ -34,9 +42,31 @@ func ASMToStrings(asms api.AsmInstructions, pointers []*api.Breakpoint, ip uint6
 }
 
 func RegsToStrings(regs api.Registers) []string {
-	result := make([]string, 0)
-	for i := 0; i <= 0x10; i++ {
+	result := make([]string, 0, 0)
+	for i := 0; i <= 16; i++ {
 		line := fmt.Sprintf("%-3s     %s", regs[i].Name, regs[i].Value)
+		result = append(result, line)
+	}
+	return result
+}
+
+func StacktraceToStrings(stacktrace []api.Stackframe) []string {
+	result := make([]string, 0, 0)
+	for _, stack := range stacktrace {
+		line := fmt.Sprintf("%s:%d", stack.Function.Name(), stack.Line)
+		result = append(result, line)
+	}
+
+	return result
+}
+
+func BreakpointsToStrings(breakpoints []*api.Breakpoint) []string {
+	result := make([]string, 0, 0)
+	for _, point := range breakpoints {
+		if point.ID < 0 {
+			continue
+		}
+		line := fmt.Sprintf("%02d | %s:%d", point.ID, point.FunctionName, point.Line)
 		result = append(result, line)
 	}
 	return result
@@ -85,7 +115,7 @@ func getMode(signal byte) uint64 {
 
 // FormatMemory 格式化数据，例如 x gx addr 会变成每行 2 个 8 字节的数据
 func FormatMemory(mems []byte, start uint64, mode uint64, format string) []string {
-	result := make([]string, 0)
+	result := make([]string, 0, 0)
 	var offset uint64
 	for len(mems) > 0 {
 		sb := strings.Builder{}
@@ -112,6 +142,44 @@ func FormatMemory(mems []byte, start uint64, mode uint64, format string) []strin
 		mems = mems[count*mode:]
 		offset += count * mode
 		result = append(result, sb.String())
+	}
+	return result
+}
+
+func StringsToString(data []string) string {
+	//return data[0]
+	result := strings.Builder{}
+	for _, d := range data {
+		result.WriteString(d)
+		result.WriteByte('\n')
+	}
+	return result.String()
+}
+
+// getDicKeys 从字典里获取所有的 key， 这里用来生成命令提示信息
+func getDicKeys[T any](dic map[string]T) []string {
+	keys := make([]string, len(dic))
+	i := 0
+	for k := range dic {
+		keys[i] = k
+		i++
+	}
+	return keys
+}
+
+// AutoComplete 命令提示
+func AutoComplete(current string) []string {
+	result := make([]string, 0, 0)
+	if len(current) == 0 {
+		return nil
+	}
+	for _, word := range wordList {
+		if strings.HasPrefix(strings.ToLower(word), strings.ToLower(current)) {
+			result = append(result, word)
+		}
+	}
+	if len(result) < 1 {
+		return nil
 	}
 	return result
 }

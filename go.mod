@@ -4,7 +4,10 @@ go 1.19
 
 require (
 	fyne.io/fyne/v2 v2.3.0
+	github.com/gdamore/tcell/v2 v2.5.3
 	github.com/go-delve/delve v1.20.1
+	github.com/rivo/tview v0.0.0-20230104153304-892d1a2eb0da
+	golang.org/x/sync v0.0.0-20220722155255-886fb9371eb4
 )
 
 require (
@@ -18,7 +21,6 @@ require (
 	github.com/fyne-io/glfw-js v0.0.0-20220120001248-ee7290d23504 // indirect
 	github.com/fyne-io/image v0.0.0-20220602074514-4956b0afb3d2 // indirect
 	github.com/gdamore/encoding v1.0.0 // indirect
-	github.com/gdamore/tcell/v2 v2.5.3 // indirect
 	github.com/go-gl/gl v0.0.0-20211210172815-726fda9656d6 // indirect
 	github.com/go-gl/glfw/v3.3/glfw v0.0.0-20221017161538-93cebf72946b // indirect
 	github.com/go-text/typesetting v0.0.0-20221212183139-1eb938670a1f // indirect
@@ -31,7 +33,6 @@ require (
 	github.com/mattn/go-isatty v0.0.3 // indirect
 	github.com/mattn/go-runewidth v0.0.13 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
-	github.com/rivo/tview v0.0.0-20230104153304-892d1a2eb0da // indirect
 	github.com/rivo/uniseg v0.4.2 // indirect
 	github.com/sirupsen/logrus v1.8.1 // indirect
 	github.com/srwiley/oksvg v0.0.0-20220731023508-a61f04f16b76 // indirect
