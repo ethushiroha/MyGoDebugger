@@ -1,7 +1,8 @@
-package main
+package UI
 
 import (
 	"fmt"
+	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
 	"strings"
 )
@@ -9,18 +10,16 @@ import (
 type handler func() error
 
 type viewInfo struct {
-	//mode   string
-	title  string
-	handle handler
-	view   *tview.TextView
-	data   []string
+	title    string
+	handle   handler
+	view     *tview.TextView
+	data     []string
+	row, col int
 }
 
 // setTextView 设置 view 的内容和标题
 func (info *viewInfo) setTextView() error {
-	info.view.Clear()
-	info.view.SetTitle(info.title)
-	info.view.SetText(StringsToString(info.data))
+	info.updateView(info.title, strings.Join(info.data, "\n"))
 	return nil
 }
 
@@ -31,6 +30,7 @@ func (info *viewInfo) updateView(title string, data string) {
 	info.view.SetText(data)
 }
 
+// Disassembly 反汇编 Rip 附近的数据，并格式化
 func (info *viewInfo) Disassembly() error {
 	asms, err := client.Disassembly()
 	if err != nil {
@@ -46,6 +46,7 @@ func (info *viewInfo) Registers() error {
 		return err
 	}
 	info.data = RegsToStrings(regs)
+	// 对发生变化的寄存器标红
 	oldRegs := strings.Split(info.view.GetText(false), "\n")
 	if len(oldRegs) > 1 {
 		for i := 1; i < 17; i++ {
@@ -67,8 +68,6 @@ func (info *viewInfo) ExamineMemory(start, mode uint64, format string) error {
 	}
 	info.data = FormatMemory(mems, start, mode, format)
 	return nil
-	//data := FormatMemory(mems, start, mode, format)
-	//return &data, nil
 }
 
 func (info *viewInfo) ExamineStack() error {
@@ -80,17 +79,10 @@ func (info *viewInfo) StackInfo() error {
 	stackFrames := client.Stacktrace()
 	info.data = StacktraceToStrings(stackFrames)
 	return nil
-	//data := StacktraceToStrings(stackFrames)
-	//return &data, nil
 }
 
 func (info *viewInfo) HistoryInfo() error {
-	length := len(history)
-	if length > 8 {
-		info.data = history[length-8:]
-	} else {
-		info.data = history
-	}
+	info.data = history
 	return nil
 }
 
@@ -111,15 +103,31 @@ func (info *viewInfo) DisassemblyAddress(addr uint64) error {
 	}
 	info.data = FormatASM(asms, client.Current.Rip)
 	return nil
-	//data := FormatASM(asms, client.Current.Rip)
-	//return &data, nil
 }
 
-func newTextView(title string, handler func()) *tview.TextView {
-	view := tview.NewTextView().
+func (info *viewInfo) PrintAddress(addr uint64, size int) error {
+	data, err := client.GetDataFromAddress(addr, size)
+	if err != nil {
+		return err
+	}
+	info.data = []string{data}
+	return nil
+}
+
+func (info *viewInfo) MonitorAddress() error {
+	info.data = monitors.getMonitorsData()
+	return nil
+}
+
+func NewTextViewInfo(title string, row, col int, handler func(), doneFunc func(key tcell.Key)) *viewInfo {
+	info := new(viewInfo)
+	info.view = tview.NewTextView().
 		SetDynamicColors(true).
 		SetRegions(true).SetChangedFunc(handler)
-	view.SetTitle(title)
-	view.SetBorder(true)
-	return view
+	info.view.SetTitle(title)
+	info.view.SetBorder(true)
+	info.view.SetDoneFunc(doneFunc)
+	info.row = row
+	info.col = col
+	return info
 }

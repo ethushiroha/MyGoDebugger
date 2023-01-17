@@ -1,6 +1,7 @@
 package main
 
 import (
+	"MyDebugger/src/TUI/UI"
 	"MyDebugger/src/api"
 	"MyDebugger/src/utils"
 	"fmt"
@@ -428,4 +429,21 @@ func TestClearBreakpointByID(t *testing.T) {
 		return
 	}
 	utils.PrintArray(points)
+}
+
+func TestPrintArray(t *testing.T) {
+	a := []int{1, 2, 3, 4}
+	c := a[1:]
+	a[2] = 9
+	utils.PrintArrayWithDetail(c)
+}
+
+func Test(t *testing.T) {
+	tString := "0x20+0x30+20"
+	args, err := UI.RegArgs(tString)
+	if err != nil {
+		t.Fatal(err)
+		return
+	}
+	fmt.Println(args)
 }

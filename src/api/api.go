@@ -2,8 +2,10 @@ package MyApi
 
 import (
 	"MyDebugger/src/utils"
+	"fmt"
 	"github.com/go-delve/delve/service/api"
 	"github.com/go-delve/delve/service/rpc2"
+	"strings"
 )
 
 // CurrentStatus 表示运行时的确切状态
@@ -39,7 +41,6 @@ func NewClient(addr string) (*MyClient, error) {
 	c.client = rpc2.NewClient(addr)
 	c.Current = new(CurrentStatus)
 	c.Current.Regs = nil
-	//c.currentGid = 1
 	err := c.GetStat()
 	if err != nil {
 		return nil, err
@@ -202,13 +203,43 @@ func (c *MyClient) GetStat() error {
 	return nil
 }
 
-// Next 是步过，不会进入函数内
+// Next 是步过，不会进入函数内，源码层面
 func (c *MyClient) Next() error {
 	_, err := c.client.Next()
 	if err != nil {
 		return err
 	}
 	return c.GetStat()
+}
+
+// NextInstruction 是汇编层面的下一步，不进入函数
+// 两种实现方法：
+//  1. 判断指令是不是call，是的话就多执行一步 step-out
+//  2. 在下一条指令下断点
+//
+// 当前使用：方法2
+func (c *MyClient) NextInstruction() error {
+	start := c.Current.Rip
+	asms, err := c.Disassembly2(start, start+0x10)
+	if err != nil {
+		return err
+	}
+	var bPC uint64
+	for i, asm := range asms {
+		if asm.Loc.PC == c.Current.Rip {
+			bPC = asms[i+1].Loc.PC
+			err = c.CreateBreakpointByAddress(bPC, "")
+			if err != nil {
+				return err
+			}
+			break
+		}
+	}
+	err = c.Continue()
+	if err != nil {
+		return err
+	}
+	return c.ClearBreakpointByAddress(bPC)
 }
 
 // Disassembly 是反汇编 Rip 寄存器附近的数据
@@ -346,10 +377,18 @@ func (c *MyClient) ReRun(rebuild bool) error {
 	return err
 }
 
-func (c *MyClient) PrintAddress(address uint64) (byte, error) {
-	memory, err := c.ExamineMemory(address, 1)
+func (c *MyClient) GetDataFromAddress(addr uint64, size int) (string, error) {
+	data, err := c.ExamineMemory(addr, size)
 	if err != nil {
-		return 0, err
+		return "", err
 	}
-	return memory[0], nil
+	builder := strings.Builder{}
+	builder.WriteString("0x")
+	for i := size - 1; i >= 0; i-- {
+		_, err2 := fmt.Fprintf(&builder, "%x", data[i])
+		if err2 != nil {
+			return "", err2
+		}
+	}
+	return builder.String(), nil
 }

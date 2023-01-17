@@ -1,8 +1,9 @@
-package main
+package UI
 
 import (
 	"fmt"
 	"github.com/go-delve/delve/service/api"
+	"strconv"
 	"strings"
 )
 
@@ -13,7 +14,13 @@ func FormatASM(asms api.AsmInstructions, ip uint64) []string {
 	preFunc := ""
 	funcLine := ""
 
-	for i := 0; i < len(asms); i++ {
+	// 显示至多 17 行汇编代码
+	lines := 17
+	if len(asms) < lines {
+		lines = len(asms)
+	}
+
+	for i := 0; i < lines; i++ {
 		line := ""
 		functionName := asms[i].Loc.Function.Name()
 		if functionName != preFunc {
@@ -146,16 +153,6 @@ func FormatMemory(mems []byte, start uint64, mode uint64, format string) []strin
 	return result
 }
 
-func StringsToString(data []string) string {
-	//return data[0]
-	result := strings.Builder{}
-	for _, d := range data {
-		result.WriteString(d)
-		result.WriteByte('\n')
-	}
-	return result.String()
-}
-
 // getDicKeys 从字典里获取所有的 key， 这里用来生成命令提示信息
 func getDicKeys[T any](dic map[string]T) []string {
 	keys := make([]string, len(dic))
@@ -182,4 +179,63 @@ func AutoComplete(current string) []string {
 		return nil
 	}
 	return result
+}
+
+func lastIndexOfNumberOrLetter(arg string) int {
+	for i := 0; i < len(arg); i++ {
+		if (arg[i] <= 'z' && arg[i] >= 'a') || (arg[i] >= '0' && arg[i] <= '9') {
+			continue
+		} else {
+			return i
+		}
+	}
+	return -1
+}
+
+func RegArgs(arg string) (string, error) {
+	unChangedString := strings.ToLower(arg)
+	var result strings.Builder
+	for len(unChangedString) > 0 {
+		if unChangedString[0] == '$' {
+			var regName string
+			lastIndex := lastIndexOfNumberOrLetter(unChangedString[1:])
+			if lastIndex == -1 {
+				regName = unChangedString[1:]
+				unChangedString = ""
+			} else {
+				regName = unChangedString[1 : 1+lastIndex]
+				unChangedString = unChangedString[1+lastIndex:]
+			}
+			for _, reg := range client.Current.Regs {
+				if strings.ToLower(reg.Name) == regName {
+					tmp, err := strconv.ParseInt(reg.Value, 0, 64)
+					if err != nil {
+						return "", err
+					}
+					result.WriteString(fmt.Sprintf("%d", tmp))
+					break
+				}
+			}
+		} else if len(unChangedString) > 1 && unChangedString[0] == '0' && unChangedString[1] == 'x' {
+			lastIndex := lastIndexOfNumberOrLetter(unChangedString[2:])
+			var hex string
+			if lastIndex == -1 {
+				hex = unChangedString
+				unChangedString = ""
+			} else {
+				hex = unChangedString[:lastIndex+2]
+				unChangedString = unChangedString[lastIndex+2:]
+			}
+			value, err := strconv.ParseInt(hex, 0, 64)
+			if err != nil {
+				return "", err
+			}
+			result.WriteString(fmt.Sprintf("%d", value))
+		} else {
+			result.WriteByte(unChangedString[0])
+			unChangedString = unChangedString[1:]
+		}
+
+	}
+	return result.String(), nil
 }

@@ -4,10 +4,12 @@ import (
 	"bufio"
 	"fmt"
 	"os"
+	"reflect"
 	"strconv"
+	"unsafe"
 )
 
-func PrintArrayWithDetail[T interface{}](array []T) {
+func PrintArrayWithDetail(array ...any) {
 	for _, i := range array {
 		fmt.Printf("%+v\n", i)
 	}
@@ -17,7 +19,7 @@ func PrintError(err error) {
 	fmt.Printf("%+v\n", err)
 }
 
-func PrintArray[T any](array []T) {
+func PrintArray(array ...any) {
 	for _, i := range array {
 		fmt.Println(i)
 	}
@@ -64,5 +66,22 @@ func ReadSourceCodeFromFile(filename string, line int) ([]string, error) {
 }
 
 func StringToUint64(data string) (uint64, error) {
+	// base 表示进制，2-64，如果为0，会自己判断，0x 为 16进制，0 为 8进制，否则为 10进制
 	return strconv.ParseUint(data, 0, 64)
+}
+
+func GetStructPtrUnExportedField(source any, fieldName string) reflect.Value {
+	// 获取非导出字段反射对象
+	v := reflect.ValueOf(source).Elem().FieldByName(fieldName)
+	// 构建指向该字段的可寻址（addressable）反射对象
+	return reflect.NewAt(v.Type(), unsafe.Pointer(v.UnsafeAddr())).Elem()
+}
+
+func TripHexZero(hex string) (string, error) {
+	tmp, err := StringToUint64(hex)
+	if err != nil {
+		return "", err
+	}
+	result := fmt.Sprintf("0x%x", tmp)
+	return result, nil
 }

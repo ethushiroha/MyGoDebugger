@@ -4,6 +4,48 @@
 
 
 
+## 2023/01/17 更新
+
+1. 抽出 `Monitors.go` 用于监控，且 `monitor` 的 size 默认为 4
+2. 添加功能：当监控的数据发生变化的时候，自动显示 监视器 界面，并在界面上标红
+3. 调整了 `initCommand` 函数的初始化布局，使用**内存逃逸**。
+4. 把 `GetDataFromAddress` 放到 `api.go` 中，因为感觉更像是 api 提供的能力
+5. 添加监控的时候可以引用寄存器的值和运算，例如 `monitor $Rsp+0x20`
+
+![image-20230117163244827](https://s2.loli.net/2023/01/17/GEHAbzIXJuRxNUF.png)
+
+
+
+## 2023/01/16 更新
+
+1. 添加 `print <address> <size>` 命令，用于打印某个地址处的值，以 `size` 的方式
+
+![image-20230116102331197](https://s2.loli.net/2023/01/16/u5QqO4rIWR6VJEB.png)
+
+2. 添加 `monitor <address> <size>` 命令，用于监视某个地址处的值，发生变化时，会变红（todo：用协程实时监控，发生变化就提示）
+
+![image-20230116102442897](https://s2.loli.net/2023/01/16/8gGdCMTjkUm4wt3.png)
+
+3. 拆出 `UICommand.go` ，仅用于处理命令的函数
+4. 拆出 `UIView.go` ，仅用于处理UI视图函数
+5. Error 用 `channel` 的方式传递，接收到 error 之后，显示在右下角
+
+
+
+
+
+## 2023/01/12 更新
+
+1. 添加 `focus <id>` 命令，让用户可以切换视图，当前窗体由红色边框标注，按下 `enter` 或者 `esc` 即返回命令输入窗口，例如在 反汇编窗口可以上下键移动（但不是实时，是缓存数据，这里有待改进）
+
+![image-20230112113326345](https://s2.loli.net/2023/01/12/frpsoKOLNPHxE4u.png)
+
+2. 更改 focus 提供两种方法：
+   1. 重新创建 `ui.grid` 对象
+   2. 使用反射更改 item 的 focus 值
+
+
+
 ## 2023/01/11 更新
 
 1. 将 ViewInfo.go 拆出
@@ -71,17 +113,7 @@ ui.go 和 data.go 在获取数据和更新界面的时候使用 `errgroup` 来�
 
 #### 输入命令
 
-- q/quit：退出调试器
-- b/break：添加断点，支持地址断点和函数名断点，也支持给断点命名
-- c/continue：运行至下一个断点出处
-- si/step-instruction：汇编层面的单步执行
-- n/next：单步执行，但不进入函数内
-- so/step-out：跳出当前函数，即执行完当前函数，并返回上一调用栈
-- clear：清除断点，支持地址、id、断点名
-- clear-all：清除所有断点
-- x：查看内存，格式化输出，例如：`x gx 0xc00007df78` ，类似 gdb 的结果
-- "": 继续上一步的指令
-- d/disassembly：反汇编地址处的值，显示在反汇编窗口上
+详情请见 `UI.go/initCommands` 函数
 
 
 

@@ -1,14 +1,16 @@
 package main
 
+import (
+	"MyDebugger/src/TUI/UI"
+	"log"
+)
+
 func main() {
-	ui, err := InitUI("127.0.0.1:9999")
+	ui, err := UI.InitUI("127.0.0.1:9999")
 	if err != nil {
-		panic(err)
+		log.Fatal(err)
 		return
 	}
-	err = ui.Run()
-	if err != nil {
-		panic(err)
-		return
-	}
+	go ui.MonitorError()
+	ui.Run()
 }
