@@ -440,7 +440,7 @@ func TestPrintArray(t *testing.T) {
 
 func Test(t *testing.T) {
 	tString := "0x20+0x30+20"
-	args, err := UI.RegArgs(tString)
+	args, err := UI.ParseArgs(tString)
 	if err != nil {
 		t.Fatal(err)
 		return

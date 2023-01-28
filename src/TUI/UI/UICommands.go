@@ -2,8 +2,6 @@ package UI
 
 import (
 	"MyDebugger/src/utils"
-	"fmt"
-	"github.com/Knetic/govaluate"
 	"strconv"
 	"strings"
 )
@@ -310,16 +308,7 @@ func (ui *UI) monitor(args []string) error {
 	var address string
 	var err error
 	// todo: 支持寄存器和运算
-	expr, err := RegArgs(args[0])
-	expression, err := govaluate.NewEvaluableExpression(expr)
-	if err != nil {
-		return err
-	}
-	result, err := expression.Evaluate(nil)
-	if err != nil {
-		return err
-	}
-	address = fmt.Sprintf("0x%x", int(result.(float64)))
+	address, err = CalculateAddress(args[0])
 	if err != nil {
 		return err
 	}
@@ -339,12 +328,70 @@ func (ui *UI) monitor(args []string) error {
 	return ui.viewMonitors()
 }
 
+func (ui *UI) track(args []string) error {
+	// track action <address> [size]
+	if args == nil || len(args) == 0 {
+		return ui.viewTrackers()
+	}
+
+	switch args[0] {
+	// track add <address> [size=4]
+	case "add":
+		address, err := CalculateAddress(args[1])
+		if err != nil {
+			return err
+		}
+		var size = 4
+		if len(args) == 3 {
+			size, err = strconv.Atoi(args[2])
+			if err != nil {
+				return err
+			}
+		}
+		trackers.add(address, size)
+	// track delete <address>
+	case "delete":
+		address, err := CalculateAddress(args[1])
+		if err != nil {
+			return err
+		}
+		if len(args) == 2 {
+			trackers.remove(address)
+		} else {
+			// todo: view help error
+			return nil
+		}
+
+	case "continue":
+		// 使用 step-in 的话 rpc 交互会有很多，整体速度比较慢
+		err := client.StepInstruction()
+		if err != nil {
+			return err
+		}
+		for !trackers.track() {
+			err = client.StepInstruction()
+			if err != nil {
+				return err
+			}
+		}
+		err = ui.flashData()
+		if err != nil {
+			return err
+		}
+		ui.TrackerView2()
+	}
+	return ui.viewTrackers()
+}
+
 func (ui *UI) viewMonitors() error {
 	monitors.monitorAddress()
-	err := ui.MonitorView()
-	if err != nil {
-		return err
-	}
+	_ = ui.MonitorView()
+	return ui.flashData()
+}
+
+func (ui *UI) viewTrackers() error {
+	_ = trackers.track()
+	_ = ui.TrackerView()
 	return ui.flashData()
 }
 

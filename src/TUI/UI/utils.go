@@ -2,6 +2,7 @@ package UI
 
 import (
 	"fmt"
+	"github.com/Knetic/govaluate"
 	"github.com/go-delve/delve/service/api"
 	"strconv"
 	"strings"
@@ -192,7 +193,7 @@ func lastIndexOfNumberOrLetter(arg string) int {
 	return -1
 }
 
-func RegArgs(arg string) (string, error) {
+func ParseArgs(arg string) (string, error) {
 	unChangedString := strings.ToLower(arg)
 	var result strings.Builder
 	for len(unChangedString) > 0 {
@@ -238,4 +239,21 @@ func RegArgs(arg string) (string, error) {
 
 	}
 	return result.String(), nil
+}
+
+func CalculateAddress(expr string) (string, error) {
+	e, err := ParseArgs(expr)
+	if err != nil {
+		return "", err
+	}
+	expression, err := govaluate.NewEvaluableExpression(e)
+	if err != nil {
+		return "", err
+	}
+	result, err := expression.Evaluate(nil)
+	if err != nil {
+		return "", err
+	}
+	address := fmt.Sprintf("0x%x", int(result.(float64)))
+	return address, nil
 }

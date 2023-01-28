@@ -1,7 +1,6 @@
 package UI
 
 import (
-	"MyDebugger/src/utils"
 	"fmt"
 )
 
@@ -17,7 +16,7 @@ type Monitors map[string]*Monitor
 var monitors = NewMonitors()
 
 func NewMonitors() Monitors {
-	return make(map[string]*Monitor)
+	return make(Monitors)
 }
 
 func (m *Monitors) getMonitorsData() []string {
@@ -36,11 +35,7 @@ func (m *Monitors) getMonitorsData() []string {
 func (m *Monitors) monitorAddress() bool {
 	flag := false
 	for address, monitor := range monitors {
-		u64Address, err := utils.StringToUint64(address)
-		if err != nil {
-			return false
-		}
-		data, err := client.GetDataFromAddress(u64Address, monitor.size)
+		data, err := client.GetDataFromStringAddress(address, monitor.size)
 		if err != nil {
 			return false
 		}

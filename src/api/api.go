@@ -392,3 +392,11 @@ func (c *MyClient) GetDataFromAddress(addr uint64, size int) (string, error) {
 	}
 	return builder.String(), nil
 }
+
+func (c *MyClient) GetDataFromStringAddress(addr string, size int) (string, error) {
+	u64Address, err := utils.StringToUint64(addr)
+	if err != nil {
+		return "", err
+	}
+	return c.GetDataFromAddress(u64Address, size)
+}

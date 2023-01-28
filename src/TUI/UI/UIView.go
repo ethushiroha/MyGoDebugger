@@ -153,4 +153,18 @@ func (ui *UI) MonitorView2() {
 	}
 }
 
+func (ui *UI) TrackerView() error {
+	if view, ok := ui.views["fourth"]; ok {
+		view.handle = view.TrackerAddress
+		view.title = "跟踪器"
+	}
+	return nil
+}
+
+func (ui *UI) TrackerView2() {
+	if view, ok := ui.views["fourth"]; ok {
+		view.updateView("跟踪器", strings.Join(trackers.getTrackersData(), "\n"))
+	}
+}
+
 // view ends

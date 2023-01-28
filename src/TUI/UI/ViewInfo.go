@@ -119,6 +119,11 @@ func (info *viewInfo) MonitorAddress() error {
 	return nil
 }
 
+func (info *viewInfo) TrackerAddress() error {
+	info.data = trackers.getTrackersData()
+	return nil
+}
+
 func NewTextViewInfo(title string, row, col int, handler func(), doneFunc func(key tcell.Key)) *viewInfo {
 	info := new(viewInfo)
 	info.view = tview.NewTextView().

@@ -107,11 +107,7 @@ func (ui *UI) dealWithCommand(key tcell.Key) {
 // MonitorError 监控 error 信息，显示在 TUI 上
 // 其实在 dealWithCommand 里捕获 error 后调用也行，但是想试试 channel，练手
 func (ui *UI) MonitorError() {
-	for {
-		err, ok := <-ui.errChannel
-		if !ok {
-			return
-		}
+	for err := range ui.errChannel {
 		if err != nil {
 			ui.ErrorView(err.Error())
 		}
@@ -202,6 +198,10 @@ func initCommands(ui *UI) {
 		handler:  ui.monitor,
 		helpInfo: "m/monitor <address> <size>: 监视某个地址的值",
 	}
+	trackCommand := &CommandInfo{
+		handler:  ui.track,
+		helpInfo: "tracker <action> <address> [size=4]: 跟踪地址处的值",
+	}
 
 	Commands = map[string]*CommandInfo{
 		"quit":             quitCommand,
@@ -239,6 +239,7 @@ func initCommands(ui *UI) {
 		"print":            printCommand,
 		"m":                monitorCommand,
 		"monitor":          monitorCommand,
+		"track":            trackCommand,
 	}
 	wordList = getDicKeys(Commands)
 }
